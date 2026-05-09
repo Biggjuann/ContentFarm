@@ -10,7 +10,9 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.rule import Rule
+from rich.table import Table
 
+from .agents.hook_database import build_hook_database
 from .pipeline import run_pipeline
 
 app = typer.Typer(help="ContentFarm — multi-agent short-form script generator")
@@ -63,6 +65,40 @@ def generate(
         f"Research: yt={len(result.research.youtube)} "
         f"reddit={len(result.research.reddit)} x={len(result.research.x)}[/dim]"
     ))
+
+
+@app.command("build-hooks")
+def build_hooks(
+    topic: str = typer.Argument(..., help="The topic to mine hook patterns for."),
+    min_occurrences: int = typer.Option(3, help="Minimum titles a pattern must appear in to survive."),
+    refresh: bool = typer.Option(False, "--refresh", help="Bypass the per-topic cache."),
+    json_out: bool = typer.Option(False, "--json"),
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+):
+    """Mine and cache the niche-specific hook pattern database for TOPIC."""
+    logging.basicConfig(
+        level=logging.INFO if verbose else logging.WARNING,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+
+    patterns = build_hook_database(topic, min_occurrences=min_occurrences, use_cache=not refresh)
+
+    if json_out:
+        json.dump([p.model_dump() for p in patterns], sys.stdout, indent=2)
+        sys.stdout.write("\n")
+        return
+
+    console.print(Rule(f"[bold cyan]Hook DB — {topic}[/bold cyan]"))
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("#", justify="right", style="dim")
+    table.add_column("Pattern")
+    table.add_column("Occurrences", justify="right")
+    table.add_column("Example")
+    table.add_column("Why")
+    for i, p in enumerate(patterns, 1):
+        table.add_row(str(i), p.pattern_name, str(p.occurrences), p.example, p.why_it_works)
+    console.print(table)
+    console.print(Rule(f"[dim]{len(patterns)} patterns extracted[/dim]"))
 
 
 def main() -> None:

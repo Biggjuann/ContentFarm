@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from ..config import SETTINGS
 from ..research import ResearchBundle
 from .base import call_structured
-from .proven_hooks import as_inspiration_block
+from .hook_database import as_inspiration_block
 
 SYSTEM = """You are the Hook Writer agent in a multi-agent content pipeline that produces \
 short-form video scripts (30-60 seconds, vertical, scroll-stopping).
@@ -60,7 +60,7 @@ def write_hooks(
     user_parts = [
         f"# TOPIC\n{topic}",
         f"# RESEARCH SWEEP\n{research.to_prompt_block()}",
-        f"# PROVEN HOOK PATTERNS\n{as_inspiration_block()}",
+        f"# PROVEN HOOK PATTERNS (mined from top-performing titles in this niche)\n{as_inspiration_block(topic)}",
     ]
     if feedback:
         user_parts.append(
